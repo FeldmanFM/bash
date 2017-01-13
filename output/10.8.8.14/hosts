@@ -1,0 +1,7 @@
+127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+10.8.8.11	node1.gtest.ru	node1
+10.8.8.12	node2.gtest.ru	node2
+10.8.8.13	node3.gtest.ru	node3
+10.8.8.14	node4.gtest.ru	node4
+10.8.8.15	node5.gtest.ru	node5

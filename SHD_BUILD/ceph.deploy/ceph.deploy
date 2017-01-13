@@ -1,0 +1,203 @@
+#!/bin/bash
+
+###### INCLUDES
+
+source ./ceph.deploy.config
+
+###### VARIABLES
+####  ENVIRONMENT
+
+CYAN='\e[96m'
+RED='\e[31m'
+GREEN='\e[32m'
+BOLD='\e[1m'
+DEFAULT='\e[0m'
+####  LOCALS
+
+ipAmount=${#ips[@]}
+result=0
+
+###### FUNCTIONS
+
+#### SERVICE FUNCTIONS
+
+function check_status {
+if (( $2 == 0 ));
+ then
+  printf "$1 status: ${GREEN}${BOLD}PASSED${DEFAULT}\n"
+  return 0
+ else
+  printf "$1 status: ${RED}${BOLD}FAILED${DEFAULT}\n"
+  return 1
+fi
+}
+
+function pgcount {
+COUNT=$(($osdAmount*100/$replicaValue))
+if (( $COUNT < 64 )); then
+  PG=64
+elif (( $COUNT < 128  )); then
+  PG=128
+elif (( $COUNT < 256 )); then
+  PG=256
+elif (( $COUNT < 512 )); then
+  PG=512
+elif (( $COUNT < 1024 )); then
+  PG=1024
+elif (( $COUNT < 2048 )); then
+  PG=2048
+elif (( $COUNT < 4096 )); then
+  PG=4096
+fi
+echo $PG
+}
+#### CHECKS
+
+function checks {
+printf "${CYAN}${BOLD}Checking config validity...${DEFAULT}\n"
+checkConfigValidity
+printf "${CYAN}${BOLD}Checking SAN_network availability${DEFAULT}\n"
+checkNetworkAvailability
+}
+
+## CONFIG
+
+function checkConfigValidity {
+checkNodeIpAmount
+result=$(($result+$?))
+checkDomainValidity
+result=$(($result+$?))
+check_status $FUNCNAME $result
+finStatus=$?
+printf "Config validation complete\n"
+return $finStatus
+}
+
+
+function checkNodeIpAmount {
+if (( $ipAmount == $ndAmount )); 
+ then
+  printf "Checking ip/node amount: ${GREEN}${BOLD}PASSED${DEFAULT}\n"
+  lResult=0
+ else
+  printf "Checking ip/node amount: ${RED}${BOLD}FAILED${DEFAULT}\n"
+  lResult=1
+fi
+sleep 0.3
+return $lResult
+}
+
+function checkDomainValidity {
+if [[ "$domain" =~ ^([a-z0-9]+(-[a-z0-9]+)*\.)+[a-z]{2,}$ ]] 
+ then
+  printf "Checking domain name \"%s\" vaildity: ${GREEN}${BOLD}PASSED${DEFAULT}\n" $domain
+  lResult=0
+ else
+  printf "Checking domain name \"%s\" vaildity: ${RED}${BOLD}FAILED${DEFAULT}\n" $domain
+  lResult=1
+fi
+sleep 0.3
+return $lResult
+}
+
+## NETWORK
+
+function checkNetworkAvailability {
+checkBridgeName
+result=$(($result+$?))
+checkBridgeMtu
+result=$(($result+$?))
+checkNodesAvailability
+result=$(($result+$?))
+checkDnsResponse
+result=$(($result+$?))
+checkSshAvailability
+result=$(($result+$?))
+check_status $FUNCNAME $result
+finStatus=$?
+printf "Network check complete\n"
+return $finStatus
+}
+
+function checkBridgeName {
+if /sbin/ethtool br0 | grep -q "Link detected: yes"; then
+  printf "Checking interface br0: ${GREEN}${BOLD}PASSED${DEFAULT}\n"
+  lResult=0
+ else
+  printf "Checking interface br0: ${RED}${BOLD}FAILED${DEFAULT}\n"
+  lResult=1
+fi
+sleep 0.3
+return $lResult
+}
+
+function checkBridgeMtu {
+brMtu=`ip link show br0 | awk '/mtu/{print $5}'`
+if (( $brMtu != 9000 )); then
+  printf "MTU of br0 is %s: ${RED}${BOLD}FAILED${DEFAULT}\n" $brMtu
+  lResult=1
+ else
+  printf "MTU of br0 is %s: ${GREEN}${BOLD}PASSED${DEFAULT}\n" $brMtu
+  lResult=0
+fi
+}
+
+function checkNodesAvailability {
+lResult=0
+for ip in ${ips[@]}
+ do
+  ping -c1 $ip 2>&1 > /dev/null
+  pingResult=$?
+  if (( $pingResult == 0 )); then
+   printf "Node %s status ${GREEN}${BOLD}AVAILABLE${DEFAULT}\n" $ip
+  else
+   printf "Node %s status ${RED}${BOLD}NOT AVAILABLE${DEFAULT}\n" $ip
+   lResult=1
+  fi
+  #printf "IP node is %s\n" $ip
+ done
+return $lResult
+}
+
+function checkDnsResponse {
+lResult=0
+for node in $(seq 1 $ndAmount)
+ do
+   nodeName=$nodePrefix$node
+   getent hosts $nodeName 2>&1 > /dev/null
+   dnsResult=$?
+   if (( $dnsResult == 0 )); then
+    printf "DNS resolve for node %s status: ${GREEN}${BOLD}RESOLVED${DEFAULT}\n" $nodeName
+    printf "IP address of node %s is: %s\n" $nodeName `getent hosts $nodeName | awk '{print $1}'`
+   else
+    printf "DNS resolve for node %s status: ${RED}${BOLD}NOT_RESOLVED${DEFAULT}\n" $nodeName
+    lResult=1
+   fi 
+done
+return $lResult
+}
+
+function checkSshAvailability {
+lResult=0
+for node in $(seq 1 $ndAmount)
+ do
+  nodeName=$nodePrefix$node
+  timeout 10 sudo -u ceph ssh -o "StrictHostKeyChecking no" ceph@$nodeName "exit" 2>&1 > /dev/null
+  sshResult=$?
+   if (( $sshResult == 0 )); then
+    printf "SSH key $nodeName: ${GREEN}${BOLD}PASSED${DEFAULT}\n" $nodeName
+   else
+    printf "SSH KEY $nodeName: ${RED}${BOLD}FAILED${DEFAULT}\n" $nodeName
+    lResult=1
+   fi
+ done 
+return $lResult
+}
+
+function init {
+checks
+}
+
+
+
+init

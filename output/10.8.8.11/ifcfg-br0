@@ -1,0 +1,12 @@
+DEVICE=br0
+TYPE=Bridge
+ONBOOT=yes
+BOOTPROTO=none
+IPADDR=10.8.8.11
+PREFIX=24
+IPV4_FAILURE_FATAL=yes
+NAME="System br0"
+STP=on
+DELAY=4
+AGEING=4
+/usr/sbin/brctl sethello br0 1

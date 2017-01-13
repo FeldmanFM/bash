@@ -1,0 +1,5 @@
+### put me in /etc/ceph/
+# RbdDevice		Parameters
+#poolname/imagename	id=client,keyring=/etc/ceph/ceph.client.keyring
+ceph_storage	
+ovirt	
