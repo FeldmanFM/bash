@@ -16,4 +16,5 @@ cd /usr/share/rhn/ && wget http://10.10.1.249/pub/RHN-ORG-TRUSTED-SSL-CERT && cd
 sed -i "s/^gpgcheck = 1/gpgcheck = 0/g" /etc/yum/pluginconf.d/rhnplugin.conf 
 rhnreg_ks --activationkey=$KEY --serverUrl=https://spacewalk.gtest.ru/XMLRPC
 printf "*/15 * * * *\t/usr/sbin/rhn_check\n"|crontab - && systemctl crond restart
-#TEST
+#TEST123
+#TESTING
